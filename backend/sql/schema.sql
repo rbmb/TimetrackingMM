@@ -65,4 +65,4 @@ INSERT INTO workstations (code, label, sort_order) VALUES
 -- Insert a default admin user (password: admin123 - change in production!)
 -- Password hash for 'admin123' using PHP password_hash with PASSWORD_BCRYPT
 INSERT INTO users (username, password_hash, display_name) VALUES
-    ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrateur');
+    ('admin', '$2y$12$/pUw3NSn4ssIbAfIEYeD2OhQAMXddRoewrTPpOOeSVMS.4v/xsrwO', 'Administrateur');
