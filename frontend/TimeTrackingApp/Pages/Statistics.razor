@@ -1,0 +1,177 @@
+@page "/statistiques"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Statistiques</PageTitle>
+
+<div class="page-header">
+    <h2>Statistiques</h2>
+</div>
+
+<div class="stats-filters">
+    <div class="filter-row">
+        <div class="form-group">
+            <label>Du</label>
+            <input type="date" value="@dateFrom.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnFromChanged(e)" class="form-input" />
+        </div>
+        <div class="form-group">
+            <label>Au</label>
+            <input type="date" value="@dateTo.ToString("yyyy-MM-dd")"
+                   @onchange="e => OnToChanged(e)" class="form-input" />
+        </div>
+        <button class="btn-primary" @onclick="LoadStats">Actualiser</button>
+    </div>
+    <div class="quick-filters">
+        <button class="btn-sm" @onclick="SetCurrentMonth">Mois en cours</button>
+        <button class="btn-sm" @onclick="SetCurrentWeek">Semaine en cours</button>
+        <button class="btn-sm" @onclick="SetCurrentYear">Année en cours</button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="loading">Chargement...</div>
+}
+else if (stats != null)
+{
+    <div class="stats-summary">
+        <div class="stat-card">
+            <div class="stat-value">@stats.TotalHours.ToString("0.#")</div>
+            <div class="stat-label">Heures totales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@stats.ByDay.Count</div>
+            <div class="stat-label">Jours travaillés</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@stats.ByWorkstation.Count</div>
+            <div class="stat-label">Postes utilisés</div>
+        </div>
+    </div>
+
+    <!-- Workstation breakdown -->
+    <div class="stats-section">
+        <h3>Temps par poste de travail</h3>
+        @if (stats.ByWorkstation.Count == 0)
+        {
+            <p>Aucune donnée pour cette période.</p>
+        }
+        else
+        {
+            <div class="stats-table-wrapper">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Poste</th>
+                            <th>Heures</th>
+                            <th>%</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ws in stats.ByWorkstation)
+                        {
+                            var pct = stats.TotalHours > 0 ? (ws.TotalHours / stats.TotalHours * 100) : 0;
+                            <tr>
+                                <td>@ws.Label</td>
+                                <td>@ws.TotalHours.ToString("0.#")h</td>
+                                <td>@pct.ToString("0.0")%</td>
+                                <td>
+                                    <div class="bar-container bar-sm">
+                                        <div class="bar-fill" style="width: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Daily breakdown -->
+    <div class="stats-section">
+        <h3>Heures par jour</h3>
+        <div class="daily-chart">
+            @foreach (var day in stats.ByDay)
+            {
+                var pct = maxDayHours > 0 ? (day.TotalHours / maxDayHours * 100) : 0;
+                var dateLabel = DateOnly.Parse(day.EntryDate).ToString("dd/MM", culture);
+                <div class="daily-bar-group">
+                    <div class="daily-bar-value">@day.TotalHours.ToString("0.#")h</div>
+                    <div class="daily-bar-track">
+                        <div class="daily-bar-fill" style="height: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                    </div>
+                    <div class="daily-bar-label">@dateLabel</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="export-section">
+        <h3>Exporter les données</h3>
+        <a href="@Api.GetExportUrl(dateFrom, dateTo)" target="_blank" class="btn-primary">
+            Télécharger CSV (Excel)
+        </a>
+    </div>
+}
+
+@code {
+    private System.Globalization.CultureInfo culture = new("fr-FR");
+    private DateOnly dateFrom;
+    private DateOnly dateTo;
+    private StatsResponse? stats;
+    private decimal maxDayHours;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("login"); return; }
+        SetCurrentMonth();
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        isLoading = true;
+        stats = await Api.GetStatsAsync(dateFrom, dateTo);
+        maxDayHours = stats?.ByDay.Count > 0 ? stats.ByDay.Max(d => d.TotalHours) : 0;
+        isLoading = false;
+    }
+
+    private void OnFromChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var d)) dateFrom = d;
+    }
+
+    private void OnToChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var d)) dateTo = d;
+    }
+
+    private void SetCurrentMonth()
+    {
+        var now = DateTime.Today;
+        dateFrom = new DateOnly(now.Year, now.Month, 1);
+        dateTo = dateFrom.AddMonths(1).AddDays(-1);
+    }
+
+    private void SetCurrentWeek()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var dayOfWeek = today.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)today.DayOfWeek - 1;
+        dateFrom = today.AddDays(-dayOfWeek);
+        dateTo = dateFrom.AddDays(5);
+    }
+
+    private void SetCurrentYear()
+    {
+        var now = DateTime.Today;
+        dateFrom = new DateOnly(now.Year, 1, 1);
+        dateTo = new DateOnly(now.Year, 12, 31);
+    }
+}

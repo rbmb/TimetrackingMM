@@ -1,0 +1,71 @@
+@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="app-container">
+    @if (Auth.IsAuthenticated)
+    {
+        <header class="top-bar">
+            <button class="menu-toggle" @onclick="ToggleMenu">&#9776;</button>
+            <h1 class="app-title">TimeTracking</h1>
+            <div class="user-info">
+                <span>@Auth.CurrentUser?.DisplayName</span>
+                <button class="btn-logout" @onclick="Logout">Déconnexion</button>
+            </div>
+        </header>
+
+        <nav class="side-nav @(menuOpen ? "open" : "")">
+            <div class="nav-overlay" @onclick="ToggleMenu"></div>
+            <div class="nav-panel">
+                <NavLink class="nav-item" href="" Match="NavLinkMatch.All" @onclick="ToggleMenu">
+                    <span class="nav-icon">&#128221;</span> Saisie
+                </NavLink>
+                <NavLink class="nav-item" href="semaine" @onclick="ToggleMenu">
+                    <span class="nav-icon">&#128197;</span> Vue Semaine
+                </NavLink>
+                <NavLink class="nav-item" href="statistiques" @onclick="ToggleMenu">
+                    <span class="nav-icon">&#128200;</span> Statistiques
+                </NavLink>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            @Body
+        </main>
+    }
+    else
+    {
+        @Body
+    }
+</div>
+
+@code {
+    private bool menuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.InitializeAsync();
+        Auth.OnAuthStateChanged += StateHasChanged;
+
+        if (!Auth.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        menuOpen = !menuOpen;
+    }
+
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        Auth.OnAuthStateChanged -= StateHasChanged;
+    }
+}

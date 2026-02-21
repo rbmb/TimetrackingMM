@@ -1,0 +1,168 @@
+@page "/semaine"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Vue Semaine</PageTitle>
+
+<div class="page-header">
+    <h2>Vue Semaine</h2>
+    <div class="date-selector">
+        <button class="btn-icon" @onclick="PreviousWeek">&lt;</button>
+        <span class="week-label">
+            @weekStart.ToString("dd/MM") - @weekEnd.ToString("dd/MM/yyyy")
+        </span>
+        <button class="btn-icon" @onclick="NextWeek">&gt;</button>
+        <button class="btn-sm" @onclick="GoToCurrentWeek">Cette semaine</button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="loading">Chargement...</div>
+}
+else
+{
+    <div class="week-grid">
+        @foreach (var day in weekDays)
+        {
+            var dayEntries = entries.Where(e => e.EntryDate == day.ToString("yyyy-MM-dd")).ToList();
+            var dayName = day.ToString("ddd dd/MM", culture);
+            var isToday = day == DateOnly.FromDateTime(DateTime.Today);
+
+            <div class="day-card @(isToday ? "today" : "")">
+                <div class="day-card-header">@dayName</div>
+                <div class="day-card-body">
+                    @if (dayEntries.Count == 0)
+                    {
+                        <div class="empty-day">Aucune saisie</div>
+                    }
+                    else
+                    {
+                        @foreach (var period in new[] { "morning", "afternoon" })
+                        {
+                            var periodEntries = dayEntries.Where(e => e.Period == period).ToList();
+                            if (periodEntries.Count > 0)
+                            {
+                                var periodLabel = period == "morning" ? "Matin" : "A-midi";
+                                <div class="period-block">
+                                    <span class="period-tag">@periodLabel</span>
+                                    @foreach (var entry in periodEntries)
+                                    {
+                                        var slotInfo = entry.Slot == 0 ? "" : $" (h{entry.Slot})";
+                                        <span class="ws-badge" title="@entry.WorkstationLabel">
+                                            @entry.WorkstationLabel@slotInfo
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Weekly summary -->
+    <div class="week-summary">
+        <h3>Résumé de la semaine</h3>
+        @if (weeklySummary.Count == 0)
+        {
+            <p>Aucune donnée pour cette semaine.</p>
+        }
+        else
+        {
+            <div class="summary-bars">
+                @foreach (var item in weeklySummary.OrderByDescending(kv => kv.Value))
+                {
+                    var pct = maxHours > 0 ? (item.Value / maxHours * 100) : 0;
+                    <div class="summary-row">
+                        <span class="summary-label">@item.Key</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                        </div>
+                        <span class="summary-value">@item.Value.ToString("0.#")h</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private System.Globalization.CultureInfo culture = new("fr-FR");
+    private DateOnly weekStart;
+    private DateOnly weekEnd;
+    private List<DateOnly> weekDays = new();
+    private List<TimeEntry> entries = new();
+    private Dictionary<string, decimal> weeklySummary = new();
+    private decimal maxHours;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("login"); return; }
+        SetCurrentWeek();
+        await LoadWeek();
+    }
+
+    private void SetCurrentWeek()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var dayOfWeek = today.DayOfWeek == DayOfWeek.Sunday ? 6 : (int)today.DayOfWeek - 1;
+        weekStart = today.AddDays(-dayOfWeek); // Monday
+        weekEnd = weekStart.AddDays(5); // Saturday
+        BuildWeekDays();
+    }
+
+    private void BuildWeekDays()
+    {
+        weekDays = new List<DateOnly>();
+        for (int i = 0; i <= 5; i++) // Mon-Sat
+            weekDays.Add(weekStart.AddDays(i));
+    }
+
+    private async Task LoadWeek()
+    {
+        isLoading = true;
+        entries = await Api.GetEntriesAsync(weekStart, weekEnd);
+        BuildSummary();
+        isLoading = false;
+    }
+
+    private void BuildSummary()
+    {
+        weeklySummary.Clear();
+        foreach (var e in entries)
+        {
+            var hours = e.Slot == 0 ? 4m : 1m;
+            if (weeklySummary.ContainsKey(e.WorkstationLabel))
+                weeklySummary[e.WorkstationLabel] += hours;
+            else
+                weeklySummary[e.WorkstationLabel] = hours;
+        }
+        maxHours = weeklySummary.Count > 0 ? weeklySummary.Values.Max() : 0;
+    }
+
+    private async Task PreviousWeek()
+    {
+        weekStart = weekStart.AddDays(-7);
+        weekEnd = weekEnd.AddDays(-7);
+        BuildWeekDays();
+        await LoadWeek();
+    }
+
+    private async Task NextWeek()
+    {
+        weekStart = weekStart.AddDays(7);
+        weekEnd = weekEnd.AddDays(7);
+        BuildWeekDays();
+        await LoadWeek();
+    }
+
+    private async Task GoToCurrentWeek()
+    {
+        SetCurrentWeek();
+        await LoadWeek();
+    }
+}

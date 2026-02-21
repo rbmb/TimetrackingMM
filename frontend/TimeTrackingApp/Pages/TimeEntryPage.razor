@@ -1,0 +1,214 @@
+@page "/"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Saisie du temps</PageTitle>
+
+<div class="page-header">
+    <h2>Saisie du temps</h2>
+    <div class="date-selector">
+        <button class="btn-icon" @onclick="PreviousDay">&lt;</button>
+        <input type="date" value="@selectedDate.ToString("yyyy-MM-dd")"
+               @onchange="OnDateChanged" class="form-input date-input" />
+        <button class="btn-icon" @onclick="NextDay">&gt;</button>
+        <button class="btn-sm" @onclick="GoToToday">Aujourd'hui</button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="loading">Chargement...</div>
+}
+else
+{
+    <div class="day-label">@selectedDate.ToString("dddd d MMMM yyyy", culture)</div>
+
+    @foreach (var period in new[] { "morning", "afternoon" })
+    {
+        var periodLabel = period == "morning" ? "Matin" : "Après-midi";
+        var isDetailed = detailedPeriods.Contains(period);
+
+        <div class="period-card">
+            <div class="period-header">
+                <h3>@periodLabel</h3>
+                <label class="toggle-detail">
+                    <input type="checkbox" checked="@isDetailed"
+                           @onchange="e => ToggleDetail(period, (bool)(e.Value ?? false))" />
+                    <span>Détail horaire</span>
+                </label>
+            </div>
+
+            @if (!isDetailed)
+            {
+                <!-- Single half-day selection -->
+                <div class="slot-row">
+                    <span class="slot-label">Demi-journée</span>
+                    <select class="form-input workstation-select"
+                            value="@GetWorkstationId(period, 0)"
+                            @onchange="e => SetEntry(period, 0, int.Parse(e.Value?.ToString() ?? "0"))">
+                        <option value="0">-- Sélectionner --</option>
+                        @foreach (var ws in workstations)
+                        {
+                            <option value="@ws.Id">@ws.Label</option>
+                        }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <!-- 4 hourly slots -->
+                @for (int i = 1; i <= 4; i++)
+                {
+                    var slot = i;
+                    var timeRange = GetTimeRange(period, slot);
+                    <div class="slot-row">
+                        <span class="slot-label">@timeRange</span>
+                        <select class="form-input workstation-select"
+                                value="@GetWorkstationId(period, slot)"
+                                @onchange="e => SetEntry(period, slot, int.Parse(e.Value?.ToString() ?? "0"))">
+                            <option value="0">-- Sélectionner --</option>
+                            @foreach (var ws in workstations)
+                            {
+                                <option value="@ws.Id">@ws.Label</option>
+                            }
+                        </select>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    <div class="action-bar">
+        <button class="btn-primary btn-full" @onclick="SaveEntries" disabled="@isSaving">
+            @(isSaving ? "Enregistrement..." : "Enregistrer")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="@(isError ? "alert-error" : "alert-success")">@message</div>
+    }
+}
+
+@code {
+    private System.Globalization.CultureInfo culture = new("fr-FR");
+    private DateOnly selectedDate = DateOnly.FromDateTime(DateTime.Today);
+    private List<Workstation> workstations = new();
+    private List<TimeEntry> entries = new();
+    private Dictionary<string, int> entryMap = new(); // "period-slot" -> workstationId
+    private HashSet<string> detailedPeriods = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? message;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("login"); return; }
+        workstations = await Api.GetWorkstationsAsync();
+        await LoadEntries();
+    }
+
+    private async Task LoadEntries()
+    {
+        isLoading = true;
+        entries = await Api.GetEntriesAsync(selectedDate, selectedDate);
+        entryMap.Clear();
+        detailedPeriods.Clear();
+
+        foreach (var e in entries)
+        {
+            entryMap[$"{e.Period}-{e.Slot}"] = e.WorkstationId;
+            if (e.Slot > 0)
+                detailedPeriods.Add(e.Period);
+        }
+
+        isLoading = false;
+    }
+
+    private int GetWorkstationId(string period, int slot)
+    {
+        return entryMap.GetValueOrDefault($"{period}-{slot}", 0);
+    }
+
+    private void SetEntry(string period, int slot, int workstationId)
+    {
+        var key = $"{period}-{slot}";
+        if (workstationId > 0)
+            entryMap[key] = workstationId;
+        else
+            entryMap.Remove(key);
+    }
+
+    private void ToggleDetail(string period, bool detailed)
+    {
+        if (detailed)
+        {
+            detailedPeriods.Add(period);
+            // Clear the half-day entry when switching to detailed
+            entryMap.Remove($"{period}-0");
+        }
+        else
+        {
+            detailedPeriods.Remove(period);
+            // Clear hourly entries when switching to half-day
+            for (int i = 1; i <= 4; i++)
+                entryMap.Remove($"{period}-{i}");
+        }
+    }
+
+    private string GetTimeRange(string period, int slot)
+    {
+        int baseHour = period == "morning" ? 6 : 13;
+        int startHour = baseHour + (slot - 1);
+        return $"{startHour:00}h - {startHour + 1:00}h";
+    }
+
+    private async Task SaveEntries()
+    {
+        isSaving = true;
+        message = null;
+
+        var requestEntries = entryMap
+            .Where(kv => kv.Value > 0)
+            .Select(kv =>
+            {
+                var parts = kv.Key.Split('-');
+                return new TimeEntryRequest
+                {
+                    Date = selectedDate.ToString("yyyy-MM-dd"),
+                    Period = parts[0],
+                    Slot = int.Parse(parts[1]),
+                    WorkstationId = kv.Value
+                };
+            })
+            .ToList();
+
+        if (requestEntries.Count == 0)
+        {
+            message = "Veuillez sélectionner au moins un poste de travail.";
+            isError = true;
+            isSaving = false;
+            return;
+        }
+
+        var success = await Api.SaveEntriesAsync(requestEntries);
+        message = success ? "Enregistré avec succès !" : "Erreur lors de l'enregistrement.";
+        isError = !success;
+        isSaving = false;
+    }
+
+    private async Task OnDateChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var date))
+        {
+            selectedDate = date;
+            await LoadEntries();
+        }
+    }
+
+    private async Task PreviousDay() { selectedDate = selectedDate.AddDays(-1); await LoadEntries(); }
+    private async Task NextDay() { selectedDate = selectedDate.AddDays(1); await LoadEntries(); }
+    private async Task GoToToday() { selectedDate = DateOnly.FromDateTime(DateTime.Today); await LoadEntries(); }
+}
