@@ -184,8 +184,7 @@ else if (stats != null)
                         var label = (maxCumulated * g / 4m).ToString("0", inv);
                         <line x1="@marginLeft" y1="@gy.ToString("0.#", inv)" x2="@((marginLeft + chartW).ToString("0", inv))" y2="@gy.ToString("0.#", inv)"
                               stroke="#e5e7eb" stroke-width="0.5" />
-                        <text x="@((marginLeft - 4).ToString("0", inv))" y="@((gy + 3).ToString("0.#", inv))" text-anchor="end"
-                              fill="#9ca3af" font-size="9">@label</text>
+                        @((MarkupString)$"<text x=\"{(marginLeft - 4).ToString("0", inv)}\" y=\"{(gy + 3).ToString("0.#", inv)}\" text-anchor=\"end\" fill=\"#9ca3af\" font-size=\"9\">{label}</text>")
                     }
 
                     <!-- X axis labels -->
@@ -197,8 +196,7 @@ else if (stats != null)
                         var xPos = marginLeft + (chartW * xi / Math.Max(1, evolutionDates.Count - 1));
                         var dl = DateOnly.TryParseExact(evolutionDates[xi], "yyyy-MM-dd", out var pd)
                             ? pd.ToString("dd/MM", culture) : evolutionDates[xi];
-                        <text x="@xPos.ToString("0.#", inv)" y="@((marginTop + chartH + 14).ToString("0", inv))"
-                              text-anchor="middle" fill="#9ca3af" font-size="8">@dl</text>
+                        @((MarkupString)$"<text x=\"{xPos.ToString("0.#", inv)}\" y=\"{(marginTop + chartH + 14).ToString("0", inv)}\" text-anchor=\"middle\" fill=\"#9ca3af\" font-size=\"8\">{dl}</text>")
                     }
 
                     <!-- Lines -->
