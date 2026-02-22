@@ -737,8 +737,11 @@ html, body {
 }
 
 .legend-color {
+    display: inline-block;
     width: 14px;
     height: 14px;
+    min-width: 14px;
+    min-height: 14px;
     border-radius: 3px;
     flex-shrink: 0;
 }

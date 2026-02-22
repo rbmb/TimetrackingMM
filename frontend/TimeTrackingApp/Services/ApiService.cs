@@ -45,10 +45,13 @@ public class ApiService
         return await _http.GetFromJsonAsync<StatsResponse>(url);
     }
 
-    // Export URL (for download link)
-    public string GetExportUrl(DateOnly from, DateOnly to)
+    // Export (authenticated fetch returning CSV bytes)
+    public async Task<byte[]?> ExportAsync(DateOnly from, DateOnly to)
     {
-        return $"{_http.BaseAddress}export.php?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        var url = $"export.php?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}";
+        var response = await _http.GetAsync(url);
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadAsByteArrayAsync();
     }
 
     // Users (admin)

@@ -92,26 +92,6 @@ else if (stats != null)
         }
     </div>
 
-    <!-- Daily breakdown -->
-    <div class="stats-section">
-        <h3>Heures par jour</h3>
-        <div class="daily-chart">
-            @foreach (var day in stats.ByDay)
-            {
-                var pct = maxDayHours > 0 ? (day.TotalHours / maxDayHours * 100) : 0;
-                var dateLabel = DateOnly.TryParseExact(day.EntryDate, "yyyy-MM-dd", out var parsedDate)
-                    ? parsedDate.ToString("dd/MM", culture) : day.EntryDate;
-                <div class="daily-bar-group">
-                    <div class="daily-bar-value">@day.TotalHours.ToString("0.#")h</div>
-                    <div class="daily-bar-track">
-                        <div class="daily-bar-fill" style="height: @pct.ToString("0", inv)%"></div>
-                    </div>
-                    <div class="daily-bar-label">@dateLabel</div>
-                </div>
-            }
-        </div>
-    </div>
-
     <!-- Pie Chart: activity proportions -->
     <div class="stats-section">
         <h3>Répartition des activités</h3>
@@ -227,9 +207,9 @@ else if (stats != null)
     <!-- Export -->
     <div class="export-section">
         <h3>Exporter les données</h3>
-        <a href="@Api.GetExportUrl(dateFrom, dateTo)" target="_blank" class="btn-primary">
-            Télécharger CSV (Excel)
-        </a>
+        <button class="btn-primary" @onclick="DownloadExport" disabled="@isExporting">
+            @(isExporting ? "Téléchargement..." : "Télécharger CSV (Excel)")
+        </button>
     </div>
 }
 
@@ -239,8 +219,8 @@ else if (stats != null)
     private DateOnly dateFrom;
     private DateOnly dateTo;
     private StatsResponse? stats;
-    private decimal maxDayHours;
     private bool isLoading;
+    private bool isExporting;
 
     // Pie chart data
     private List<PieSlice> pieSlices = new();
@@ -278,7 +258,6 @@ else if (stats != null)
     {
         isLoading = true;
         stats = await Api.GetStatsAsync(dateFrom, dateTo);
-        maxDayHours = stats?.ByDay.Count > 0 ? stats.ByDay.Max(d => d.TotalHours) : 0;
         BuildPieData();
         BuildEvolutionData();
         isLoading = false;
@@ -399,6 +378,19 @@ else if (stats != null)
         var now = DateTime.Today;
         dateFrom = new DateOnly(now.Year, 1, 1);
         dateTo = new DateOnly(now.Year, 12, 31);
+    }
+
+    private async Task DownloadExport()
+    {
+        isExporting = true;
+        var bytes = await Api.ExportAsync(dateFrom, dateTo);
+        if (bytes != null)
+        {
+            var fileName = $"timetracking_{dateFrom:yyyy-MM-dd}_{dateTo:yyyy-MM-dd}.csv";
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadFile", fileName, "text/csv", base64);
+        }
+        isExporting = false;
     }
 
     private class PieSlice

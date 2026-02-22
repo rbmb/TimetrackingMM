@@ -25,6 +25,22 @@
     </div>
 
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        function downloadFile(fileName, contentType, base64) {
+            var bin = atob(base64);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            var blob = new Blob([bytes], { type: contentType });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
 </body>
 </html>
