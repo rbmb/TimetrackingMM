@@ -46,7 +46,7 @@ else
                     <span class="slot-label">Demi-journée</span>
                     <select class="form-input workstation-select"
                             value="@GetWorkstationId(period, 0)"
-                            @onchange="e => SetEntry(period, 0, int.Parse(e.Value?.ToString() ?? "0"))">
+                            @onchange="e => SetEntry(period, 0, ParseValue(e.Value))">
                         <option value="0">-- Sélectionner --</option>
                         @foreach (var ws in workstations)
                         {
@@ -66,7 +66,7 @@ else
                         <span class="slot-label">@timeRange</span>
                         <select class="form-input workstation-select"
                                 value="@GetWorkstationId(period, slot)"
-                                @onchange="e => SetEntry(period, slot, int.Parse(e.Value?.ToString() ?? "0"))">
+                                @onchange="e => SetEntry(period, slot, ParseValue(e.Value))">
                             <option value="0">-- Sélectionner --</option>
                             @foreach (var ws in workstations)
                             {
@@ -92,6 +92,9 @@ else
 }
 
 @code {
+    private static int ParseValue(object? value) =>
+        int.TryParse(value?.ToString(), out var result) ? result : 0;
+
     private System.Globalization.CultureInfo culture = new("fr-FR");
     private DateOnly selectedDate = DateOnly.FromDateTime(DateTime.Today);
     private List<Workstation> workstations = new();
