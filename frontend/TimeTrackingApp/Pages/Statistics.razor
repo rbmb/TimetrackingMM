@@ -268,10 +268,10 @@ else if (stats != null)
         pieSlices.Clear();
         if (stats == null || stats.ByWorkstation.Count == 0 || stats.TotalHours == 0) return;
 
-        // Take top 5, group rest as "Autres"
+        // Take top 7, group rest as "Autres"
         var sorted = stats.ByWorkstation.OrderByDescending(w => w.TotalHours).ToList();
-        var top = sorted.Take(5).ToList();
-        var rest = sorted.Skip(5).ToList();
+        var top = sorted.Take(7).ToList();
+        var rest = sorted.Skip(7).ToList();
 
         for (int i = 0; i < top.Count; i++)
         {
