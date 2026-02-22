@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100) NOT NULL,
+    is_admin TINYINT(1) DEFAULT 0,
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
@@ -64,5 +65,5 @@ INSERT INTO workstations (code, label, sort_order) VALUES
 
 -- Insert a default admin user (password: admin123 - change in production!)
 -- Password hash for 'admin123' using PHP password_hash with PASSWORD_BCRYPT
-INSERT INTO users (username, password_hash, display_name) VALUES
-    ('admin', '$2y$12$/pUw3NSn4ssIbAfIEYeD2OhQAMXddRoewrTPpOOeSVMS.4v/xsrwO', 'Administrateur');
+INSERT INTO users (username, password_hash, display_name, is_admin) VALUES
+    ('admin', '$2y$12$/pUw3NSn4ssIbAfIEYeD2OhQAMXddRoewrTPpOOeSVMS.4v/xsrwO', 'Administrateur', 1);

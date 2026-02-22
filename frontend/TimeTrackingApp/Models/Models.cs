@@ -12,6 +12,66 @@ public class UserInfo
 
     [JsonPropertyName("displayName")]
     public string DisplayName { get; set; } = "";
+
+    [JsonPropertyName("isAdmin")]
+    public bool IsAdmin { get; set; }
+}
+
+public class UserListItem
+{
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    [JsonPropertyName("display_name")]
+    public string DisplayName { get; set; } = "";
+
+    [JsonPropertyName("is_admin")]
+    public bool IsAdmin { get; set; }
+
+    [JsonPropertyName("is_active")]
+    public bool IsActive { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public string CreatedAt { get; set; } = "";
+}
+
+public class CreateUserRequest
+{
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = "";
+
+    [JsonPropertyName("display_name")]
+    public string DisplayName { get; set; } = "";
+
+    [JsonPropertyName("is_admin")]
+    public bool IsAdmin { get; set; }
+}
+
+public class UpdateUserRequest
+{
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+
+    [JsonPropertyName("username")]
+    public string? Username { get; set; }
+
+    [JsonPropertyName("display_name")]
+    public string? DisplayName { get; set; }
+
+    [JsonPropertyName("password")]
+    public string? Password { get; set; }
+
+    [JsonPropertyName("is_admin")]
+    public bool? IsAdmin { get; set; }
+
+    [JsonPropertyName("is_active")]
+    public bool? IsActive { get; set; }
 }
 
 public class LoginRequest

@@ -1,0 +1,276 @@
+@page "/admin"
+@inject ApiService Api
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Administration</PageTitle>
+
+<div class="page-header">
+    <h2>Gestion des utilisateurs</h2>
+</div>
+
+@if (!Auth.IsAuthenticated || !Auth.CurrentUser!.IsAdmin)
+{
+    <div class="alert-error">Accès réservé aux administrateurs.</div>
+}
+else
+{
+    <!-- Add new user form -->
+    <div class="admin-card">
+        <h3>@(editingUser != null ? "Modifier l'utilisateur" : "Ajouter un utilisateur")</h3>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="@(isError ? "alert-error" : "alert-success")">@message</div>
+        }
+
+        <div class="admin-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input type="text" class="form-input" @bind="formUsername" placeholder="Identifiant" />
+                </div>
+                <div class="form-group">
+                    <label>Nom d'affichage</label>
+                    <input type="text" class="form-input" @bind="formDisplayName" placeholder="Prénom Nom" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mot de passe @(editingUser != null ? "(laisser vide pour ne pas changer)" : "")</label>
+                    <input type="password" class="form-input" @bind="formPassword" placeholder="Mot de passe" />
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" @bind="formIsAdmin" />
+                        <span>Administrateur</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" @onclick="SaveUser" disabled="@isSaving">
+                    @(isSaving ? "Enregistrement..." : (editingUser != null ? "Mettre à jour" : "Créer"))
+                </button>
+                @if (editingUser != null)
+                {
+                    <button class="btn-sm" @onclick="CancelEdit">Annuler</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- User list -->
+    <div class="admin-card">
+        <h3>Utilisateurs (@users.Count)</h3>
+
+        @if (isLoading)
+        {
+            <div class="loading">Chargement...</div>
+        }
+        else
+        {
+            <div class="stats-table-wrapper">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Identifiant</th>
+                            <th>Nom</th>
+                            <th>Admin</th>
+                            <th>Actif</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr class="@(!user.IsActive ? "row-inactive" : "")">
+                                <td>@user.Id</td>
+                                <td>@user.Username</td>
+                                <td>@user.DisplayName</td>
+                                <td>@(user.IsAdmin ? "Oui" : "Non")</td>
+                                <td>@(user.IsActive ? "Oui" : "Non")</td>
+                                <td class="actions-cell">
+                                    <button class="btn-sm" @onclick="() => StartEdit(user)">Modifier</button>
+                                    @if (user.IsActive && user.Id != Auth.CurrentUser!.Id)
+                                    {
+                                        <button class="btn-sm btn-danger" @onclick="() => Deactivate(user)">Désactiver</button>
+                                    }
+                                    @if (!user.IsActive)
+                                    {
+                                        <button class="btn-sm btn-success" @onclick="() => Reactivate(user)">Réactiver</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<UserListItem> users = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? message;
+    private bool isError;
+
+    // Form fields
+    private string formUsername = "";
+    private string formDisplayName = "";
+    private string formPassword = "";
+    private bool formIsAdmin;
+    private UserListItem? editingUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("login"); return; }
+        if (!Auth.CurrentUser!.IsAdmin) return;
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        users = await Api.GetUsersAsync();
+        isLoading = false;
+    }
+
+    private async Task SaveUser()
+    {
+        isSaving = true;
+        message = null;
+
+        if (string.IsNullOrWhiteSpace(formUsername) || string.IsNullOrWhiteSpace(formDisplayName))
+        {
+            message = "Nom d'utilisateur et nom d'affichage requis.";
+            isError = true;
+            isSaving = false;
+            return;
+        }
+
+        if (editingUser != null)
+        {
+            // Update
+            var request = new UpdateUserRequest
+            {
+                Id = editingUser.Id,
+                Username = formUsername,
+                DisplayName = formDisplayName,
+                IsAdmin = formIsAdmin,
+            };
+            if (!string.IsNullOrEmpty(formPassword))
+                request.Password = formPassword;
+
+            var response = await Api.UpdateUserAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Utilisateur mis à jour.";
+                isError = false;
+                CancelEdit();
+                await LoadUsers();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                message = $"Erreur : {error}";
+                isError = true;
+            }
+        }
+        else
+        {
+            // Create
+            if (string.IsNullOrEmpty(formPassword))
+            {
+                message = "Le mot de passe est requis pour un nouvel utilisateur.";
+                isError = true;
+                isSaving = false;
+                return;
+            }
+
+            var request = new CreateUserRequest
+            {
+                Username = formUsername,
+                Password = formPassword,
+                DisplayName = formDisplayName,
+                IsAdmin = formIsAdmin,
+            };
+
+            var response = await Api.CreateUserAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Utilisateur créé.";
+                isError = false;
+                ClearForm();
+                await LoadUsers();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                message = $"Erreur : {error}";
+                isError = true;
+            }
+        }
+
+        isSaving = false;
+    }
+
+    private void StartEdit(UserListItem user)
+    {
+        editingUser = user;
+        formUsername = user.Username;
+        formDisplayName = user.DisplayName;
+        formPassword = "";
+        formIsAdmin = user.IsAdmin;
+        message = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingUser = null;
+        ClearForm();
+    }
+
+    private void ClearForm()
+    {
+        formUsername = "";
+        formDisplayName = "";
+        formPassword = "";
+        formIsAdmin = false;
+    }
+
+    private async Task Deactivate(UserListItem user)
+    {
+        var success = await Api.DeactivateUserAsync(user.Id);
+        if (success)
+        {
+            message = $"Utilisateur '{user.Username}' désactivé.";
+            isError = false;
+            await LoadUsers();
+        }
+        else
+        {
+            message = "Erreur lors de la désactivation.";
+            isError = true;
+        }
+    }
+
+    private async Task Reactivate(UserListItem user)
+    {
+        var request = new UpdateUserRequest { Id = user.Id, IsActive = true };
+        var response = await Api.UpdateUserAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            message = $"Utilisateur '{user.Username}' réactivé.";
+            isError = false;
+            await LoadUsers();
+        }
+        else
+        {
+            message = "Erreur lors de la réactivation.";
+            isError = true;
+        }
+    }
+}

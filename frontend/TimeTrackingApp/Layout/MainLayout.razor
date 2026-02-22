@@ -26,6 +26,12 @@
                 <NavLink class="nav-item" href="statistiques" @onclick="ToggleMenu">
                     <span class="nav-icon">&#128200;</span> Statistiques
                 </NavLink>
+                @if (Auth.CurrentUser?.IsAdmin == true)
+                {
+                    <NavLink class="nav-item" href="admin" @onclick="ToggleMenu">
+                        <span class="nav-icon">&#9881;</span> Administration
+                    </NavLink>
+                }
             </div>
         </nav>
 

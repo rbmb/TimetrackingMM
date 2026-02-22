@@ -715,6 +715,74 @@ html, body {
     margin-bottom: 12px;
 }
 
+/* ===== Admin Page ===== */
+.admin-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.admin-card h3 {
+    font-size: 16px;
+    color: var(--gray-700);
+    margin-bottom: 12px;
+}
+
+.admin-form .form-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-form .form-row .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.admin-form .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--gray-700);
+    cursor: pointer;
+    padding-top: 24px;
+}
+
+.checkbox-label input { accent-color: var(--primary); }
+
+.actions-cell {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-danger {
+    background: #fef2f2;
+    color: var(--danger);
+    border-color: #fecaca;
+}
+
+.btn-danger:hover { background: #fecaca; }
+
+.btn-success {
+    background: #ecfdf5;
+    color: var(--success);
+    border-color: #a7f3d0;
+}
+
+.btn-success:hover { background: #a7f3d0; }
+
+.row-inactive { opacity: .5; }
+
 /* ===== Tablet+ ===== */
 @media (min-width: 640px) {
     .user-info span { display: inline; }

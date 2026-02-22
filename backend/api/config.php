@@ -94,6 +94,14 @@ function requireAuth(): array {
     return $user;
 }
 
+function requireAdmin(): array {
+    $user = requireAuth();
+    if (empty($user['is_admin'])) {
+        jsonError('Accès réservé aux administrateurs', 403);
+    }
+    return $user;
+}
+
 function getRequestBody(): array {
     $body = file_get_contents('php://input');
     $data = json_decode($body, true);

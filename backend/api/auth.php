@@ -13,7 +13,7 @@ if ($method === 'POST') {
     }
 
     $pdo = getDbConnection();
-    $stmt = $pdo->prepare('SELECT id, username, password_hash, display_name FROM users WHERE username = ? AND is_active = 1');
+    $stmt = $pdo->prepare('SELECT id, username, password_hash, display_name, is_admin FROM users WHERE username = ? AND is_active = 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -25,6 +25,7 @@ if ($method === 'POST') {
         'user_id' => $user['id'],
         'username' => $user['username'],
         'display_name' => $user['display_name'],
+        'is_admin' => (bool)$user['is_admin'],
     ]);
 
     jsonResponse([
@@ -33,6 +34,7 @@ if ($method === 'POST') {
             'id' => $user['id'],
             'username' => $user['username'],
             'displayName' => $user['display_name'],
+            'isAdmin' => (bool)$user['is_admin'],
         ],
     ]);
 }
@@ -45,6 +47,7 @@ if ($method === 'GET') {
             'id' => $user['user_id'],
             'username' => $user['username'],
             'displayName' => $user['display_name'],
+            'isAdmin' => !empty($user['is_admin']),
         ],
     ]);
 }
