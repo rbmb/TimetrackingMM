@@ -20,15 +20,17 @@ define('DB_PASS', getenv('DB_PASS') ?: '');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'change-this-secret-key-in-production');
 define('JWT_EXPIRY_HOURS', 24);
 
-// CORS configuration
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// CORS configuration (skip when running from CLI)
+if (php_sapi_name() !== 'cli') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
 }
 
 function getDbConnection(): PDO {
