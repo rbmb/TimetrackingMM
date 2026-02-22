@@ -63,25 +63,27 @@ else
         }
     </div>
 
-    <!-- Weekly summary -->
+    <!-- Weekly summary: cumul by activity sorted by hours spent -->
     <div class="week-summary">
-        <h3>Résumé de la semaine</h3>
+        <h3>Cumul de la semaine par activité</h3>
         @if (weeklySummary.Count == 0)
         {
             <p>Aucune donnée pour cette semaine.</p>
         }
         else
         {
+            <div class="summary-total">Total : @totalWeekHours.ToString("0.#")h</div>
             <div class="summary-bars">
                 @foreach (var item in weeklySummary.OrderByDescending(kv => kv.Value))
                 {
                     var pct = maxHours > 0 ? (item.Value / maxHours * 100) : 0;
+                    var pctTotal = totalWeekHours > 0 ? (item.Value / totalWeekHours * 100) : 0;
                     <div class="summary-row">
                         <span class="summary-label">@item.Key</span>
                         <div class="bar-container">
                             <div class="bar-fill" style="width: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
                         </div>
-                        <span class="summary-value">@item.Value.ToString("0.#")h</span>
+                        <span class="summary-value">@item.Value.ToString("0.#")h (@pctTotal.ToString("0")%)</span>
                     </div>
                 }
             </div>
@@ -97,6 +99,7 @@ else
     private List<TimeEntry> entries = new();
     private Dictionary<string, decimal> weeklySummary = new();
     private decimal maxHours;
+    private decimal totalWeekHours;
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -142,6 +145,7 @@ else
                 weeklySummary[e.WorkstationLabel] = hours;
         }
         maxHours = weeklySummary.Count > 0 ? weeklySummary.Values.Max() : 0;
+        totalWeekHours = weeklySummary.Values.Sum();
     }
 
     private async Task PreviousWeek()

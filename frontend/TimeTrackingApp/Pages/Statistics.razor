@@ -99,7 +99,8 @@ else if (stats != null)
             @foreach (var day in stats.ByDay)
             {
                 var pct = maxDayHours > 0 ? (day.TotalHours / maxDayHours * 100) : 0;
-                var dateLabel = DateOnly.Parse(day.EntryDate).ToString("dd/MM", culture);
+                var dateLabel = DateOnly.TryParseExact(day.EntryDate, "yyyy-MM-dd", out var parsedDate)
+                    ? parsedDate.ToString("dd/MM", culture) : day.EntryDate;
                 <div class="daily-bar-group">
                     <div class="daily-bar-value">@day.TotalHours.ToString("0.#")h</div>
                     <div class="daily-bar-track">
