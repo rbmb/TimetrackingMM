@@ -40,10 +40,24 @@ $byDay = $stmt->fetchAll();
 
 $totalHours = array_sum(array_column($byWorkstation, 'total_hours'));
 
+// Daily breakdown per workstation (for evolution chart)
+$stmt = $pdo->prepare('
+    SELECT te.entry_date, w.label,
+           SUM(CASE WHEN te.slot = 0 THEN 4 ELSE 1 END) AS hours
+    FROM time_entries te
+    JOIN workstations w ON w.id = te.workstation_id
+    WHERE te.user_id = ? AND te.entry_date BETWEEN ? AND ?
+    GROUP BY te.entry_date, w.id, w.label
+    ORDER BY te.entry_date, w.label
+');
+$stmt->execute([$userId, $dateFrom, $dateTo]);
+$dailyByWorkstation = $stmt->fetchAll();
+
 jsonResponse([
     'from' => $dateFrom,
     'to' => $dateTo,
     'totalHours' => $totalHours,
     'byWorkstation' => $byWorkstation,
     'byDay' => $byDay,
+    'dailyByWorkstation' => $dailyByWorkstation,
 ]);

@@ -715,6 +715,111 @@ html, body {
     margin-bottom: 12px;
 }
 
+/* ===== Pie Chart ===== */
+.chart-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.pie-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.legend-text {
+    font-size: 13px;
+    color: var(--gray-700);
+}
+
+.pie-chart-wrapper {
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+}
+
+.pie-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ===== Evolution Line Chart ===== */
+.evolution-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 12px;
+}
+
+.line-chart-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.line-svg {
+    width: 100%;
+    min-width: 400px;
+    height: auto;
+}
+
+/* ===== Password Modal ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    padding: 16px;
+}
+
+.modal-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.modal-card h3 {
+    font-size: 18px;
+    color: var(--gray-900);
+    margin-bottom: 16px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.btn-warning {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+.btn-warning:hover { background: #fef3c7; }
+
 /* ===== Admin Page ===== */
 .admin-card {
     background: white;

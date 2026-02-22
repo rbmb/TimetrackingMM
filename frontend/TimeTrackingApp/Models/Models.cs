@@ -165,6 +165,9 @@ public class StatsResponse
 
     [JsonPropertyName("byDay")]
     public List<DayStat> ByDay { get; set; } = new();
+
+    [JsonPropertyName("dailyByWorkstation")]
+    public List<DailyWorkstationStat> DailyByWorkstation { get; set; } = new();
 }
 
 public class WorkstationStat
@@ -186,4 +189,16 @@ public class DayStat
 
     [JsonPropertyName("total_hours")]
     public decimal TotalHours { get; set; }
+}
+
+public class DailyWorkstationStat
+{
+    [JsonPropertyName("entry_date")]
+    public string EntryDate { get; set; } = "";
+
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = "";
+
+    [JsonPropertyName("hours")]
+    public decimal Hours { get; set; }
 }

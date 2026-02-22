@@ -92,6 +92,7 @@ else
                                 <td>@(user.IsActive ? "Oui" : "Non")</td>
                                 <td class="actions-cell">
                                     <button class="btn-sm" @onclick="() => StartEdit(user)">Modifier</button>
+                                    <button class="btn-sm btn-warning" @onclick="() => OpenPasswordModal(user)">Mot de passe</button>
                                     @if (user.IsActive && user.Id != Auth.CurrentUser!.Id)
                                     {
                                         <button class="btn-sm btn-danger" @onclick="() => Deactivate(user)">Désactiver</button>
@@ -108,6 +109,40 @@ else
             </div>
         }
     </div>
+
+    <!-- Password change modal -->
+    @if (passwordUser != null)
+    {
+        <div class="modal-overlay" @onclick="ClosePasswordModal">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <h3>Changer le mot de passe</h3>
+                <p style="margin-bottom:12px;color:#6b7280;font-size:14px;">
+                    Utilisateur : <strong>@passwordUser.DisplayName</strong> (@passwordUser.Username)
+                </p>
+
+                @if (!string.IsNullOrEmpty(passwordMessage))
+                {
+                    <div class="@(passwordIsError ? "alert-error" : "alert-success")">@passwordMessage</div>
+                }
+
+                <div class="form-group">
+                    <label>Nouveau mot de passe</label>
+                    <input type="password" class="form-input" @bind="newPassword" placeholder="Minimum 4 caractères" />
+                </div>
+                <div class="form-group">
+                    <label>Confirmer le mot de passe</label>
+                    <input type="password" class="form-input" @bind="confirmPassword" placeholder="Répétez le mot de passe" />
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-sm" @onclick="ClosePasswordModal">Annuler</button>
+                    <button class="btn-primary" @onclick="ChangePassword" disabled="@isChangingPassword">
+                        @(isChangingPassword ? "Enregistrement..." : "Changer")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
@@ -123,6 +158,14 @@ else
     private string formPassword = "";
     private bool formIsAdmin;
     private UserListItem? editingUser;
+
+    // Password modal
+    private UserListItem? passwordUser;
+    private string newPassword = "";
+    private string confirmPassword = "";
+    private string? passwordMessage;
+    private bool passwordIsError;
+    private bool isChangingPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -272,5 +315,64 @@ else
             message = "Erreur lors de la réactivation.";
             isError = true;
         }
+    }
+
+    private void OpenPasswordModal(UserListItem user)
+    {
+        passwordUser = user;
+        newPassword = "";
+        confirmPassword = "";
+        passwordMessage = null;
+    }
+
+    private void ClosePasswordModal()
+    {
+        passwordUser = null;
+        newPassword = "";
+        confirmPassword = "";
+        passwordMessage = null;
+    }
+
+    private async Task ChangePassword()
+    {
+        passwordMessage = null;
+
+        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 4)
+        {
+            passwordMessage = "Le mot de passe doit contenir au moins 4 caractères.";
+            passwordIsError = true;
+            return;
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            passwordMessage = "Les mots de passe ne correspondent pas.";
+            passwordIsError = true;
+            return;
+        }
+
+        isChangingPassword = true;
+
+        var request = new UpdateUserRequest
+        {
+            Id = passwordUser!.Id,
+            Password = newPassword,
+        };
+
+        var response = await Api.UpdateUserAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            passwordMessage = "Mot de passe modifié avec succès.";
+            passwordIsError = false;
+            newPassword = "";
+            confirmPassword = "";
+        }
+        else
+        {
+            passwordMessage = "Erreur lors de la modification du mot de passe.";
+            passwordIsError = true;
+        }
+
+        isChangingPassword = false;
     }
 }

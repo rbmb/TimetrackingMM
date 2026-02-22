@@ -52,7 +52,7 @@ else if (stats != null)
         </div>
     </div>
 
-    <!-- Workstation breakdown -->
+    <!-- Workstation breakdown table -->
     <div class="stats-section">
         <h3>Temps par poste de travail</h3>
         @if (stats.ByWorkstation.Count == 0)
@@ -81,7 +81,7 @@ else if (stats != null)
                                 <td>@pct.ToString("0.0")%</td>
                                 <td>
                                     <div class="bar-container bar-sm">
-                                        <div class="bar-fill" style="width: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                        <div class="bar-fill" style="width: @pct.ToString("0", inv)%"></div>
                                     </div>
                                 </td>
                             </tr>
@@ -104,12 +104,126 @@ else if (stats != null)
                 <div class="daily-bar-group">
                     <div class="daily-bar-value">@day.TotalHours.ToString("0.#")h</div>
                     <div class="daily-bar-track">
-                        <div class="daily-bar-fill" style="height: @pct.ToString("0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                        <div class="daily-bar-fill" style="height: @pct.ToString("0", inv)%"></div>
                     </div>
                     <div class="daily-bar-label">@dateLabel</div>
                 </div>
             }
         </div>
+    </div>
+
+    <!-- Pie Chart: activity proportions -->
+    <div class="stats-section">
+        <h3>Répartition des activités</h3>
+        @if (pieSlices.Count > 0)
+        {
+            <div class="chart-container">
+                <div class="pie-legend">
+                    @foreach (var slice in pieSlices)
+                    {
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: @slice.Color"></span>
+                            <span class="legend-text">@slice.Label (@slice.Hours.ToString("0.#")h - @slice.Percentage.ToString("0.0")%)</span>
+                        </div>
+                    }
+                </div>
+                <div class="pie-chart-wrapper">
+                    <svg viewBox="-1.1 -1.1 2.2 2.2" class="pie-svg">
+                        @{ decimal cumAngle = 0; }
+                        @foreach (var slice in pieSlices)
+                        {
+                            if (slice.Percentage <= 0) continue;
+                            var startAngle = cumAngle * 360m / 100m;
+                            var sliceAngle = slice.Percentage * 360m / 100m;
+                            cumAngle += slice.Percentage;
+
+                            // If single slice covers 100%, draw a full circle
+                            if (slice.Percentage >= 99.9m)
+                            {
+                                <circle r="1" fill="@slice.Color" />
+                            }
+                            else
+                            {
+                                var startRad = (double)(startAngle - 90) * Math.PI / 180;
+                                var endRad = (double)(startAngle + sliceAngle - 90) * Math.PI / 180;
+                                var x1 = Math.Cos(startRad);
+                                var y1 = Math.Sin(startRad);
+                                var x2 = Math.Cos(endRad);
+                                var y2 = Math.Sin(endRad);
+                                var largeArc = sliceAngle > 180 ? 1 : 0;
+                                <path d="M 0 0 L @x1.ToString("0.####", inv) @y1.ToString("0.####", inv) A 1 1 0 @largeArc 1 @x2.ToString("0.####", inv) @y2.ToString("0.####", inv) Z"
+                                      fill="@slice.Color" stroke="white" stroke-width="0.01" />
+                            }
+                        }
+                    </svg>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Evolution chart: cumulated activity over time -->
+    <div class="stats-section">
+        <h3>Évolution cumulée des activités</h3>
+        @if (evolutionSeries.Count > 0 && evolutionDates.Count > 0)
+        {
+            <div class="evolution-legend">
+                @foreach (var series in evolutionSeries)
+                {
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: @series.Color"></span>
+                        <span class="legend-text">@series.Label</span>
+                    </div>
+                }
+            </div>
+            <div class="line-chart-wrapper">
+                <svg viewBox="0 0 @svgWidth @svgHeight" class="line-svg" preserveAspectRatio="xMidYMid meet">
+                    <!-- Y axis grid lines -->
+                    @for (int g = 0; g <= 4; g++)
+                    {
+                        var gy = marginTop + (chartH - chartH * g / 4.0);
+                        var label = (maxCumulated * g / 4m).ToString("0", inv);
+                        <line x1="@marginLeft" y1="@gy.ToString("0.#", inv)" x2="@((marginLeft + chartW).ToString("0", inv))" y2="@gy.ToString("0.#", inv)"
+                              stroke="#e5e7eb" stroke-width="0.5" />
+                        <text x="@((marginLeft - 4).ToString("0", inv))" y="@((gy + 3).ToString("0.#", inv))" text-anchor="end"
+                              fill="#9ca3af" font-size="9">@label</text>
+                    }
+
+                    <!-- X axis labels -->
+                    @{
+                        int labelStep = Math.Max(1, evolutionDates.Count / 8);
+                    }
+                    @for (int xi = 0; xi < evolutionDates.Count; xi += labelStep)
+                    {
+                        var xPos = marginLeft + (chartW * xi / Math.Max(1, evolutionDates.Count - 1));
+                        var dl = DateOnly.TryParseExact(evolutionDates[xi], "yyyy-MM-dd", out var pd)
+                            ? pd.ToString("dd/MM", culture) : evolutionDates[xi];
+                        <text x="@xPos.ToString("0.#", inv)" y="@((marginTop + chartH + 14).ToString("0", inv))"
+                              text-anchor="middle" fill="#9ca3af" font-size="8">@dl</text>
+                    }
+
+                    <!-- Lines -->
+                    @foreach (var series in evolutionSeries)
+                    {
+                        if (series.Points.Count < 2) continue;
+                        var pathParts = new System.Text.StringBuilder();
+                        for (int pi = 0; pi < series.Points.Count; pi++)
+                        {
+                            var px = marginLeft + (chartW * pi / Math.Max(1, series.Points.Count - 1));
+                            var py = marginTop + chartH - (maxCumulated > 0 ? (double)(series.Points[pi] / maxCumulated) * chartH : 0);
+                            pathParts.Append(pi == 0 ? "M " : " L ");
+                            pathParts.Append(px.ToString("0.#", inv));
+                            pathParts.Append(' ');
+                            pathParts.Append(py.ToString("0.#", inv));
+                        }
+                        <path d="@pathParts.ToString()" fill="none" stroke="@series.Color" stroke-width="2" stroke-linejoin="round" />
+                    }
+                </svg>
+            </div>
+        }
+        else
+        {
+            <p>Aucune donnée pour cette période.</p>
+        }
     </div>
 
     <!-- Export -->
@@ -123,11 +237,37 @@ else if (stats != null)
 
 @code {
     private System.Globalization.CultureInfo culture = new("fr-FR");
+    private System.Globalization.CultureInfo inv = System.Globalization.CultureInfo.InvariantCulture;
     private DateOnly dateFrom;
     private DateOnly dateTo;
     private StatsResponse? stats;
     private decimal maxDayHours;
     private bool isLoading;
+
+    // Pie chart data
+    private List<PieSlice> pieSlices = new();
+
+    // Evolution chart data
+    private List<EvolutionSeries> evolutionSeries = new();
+    private List<string> evolutionDates = new();
+    private decimal maxCumulated;
+
+    // SVG dimensions for line chart
+    private const double svgWidth = 600;
+    private const double svgHeight = 300;
+    private const double marginLeft = 40;
+    private const double marginTop = 10;
+    private const double marginRight = 10;
+    private const double marginBottom = 20;
+    private double chartW => svgWidth - marginLeft - marginRight;
+    private double chartH => svgHeight - marginTop - marginBottom;
+
+    // 8 colors for pie/line charts
+    private static readonly string[] ChartColors = new[]
+    {
+        "#1a56db", "#e02424", "#0e9f6e", "#f59e0b",
+        "#7c3aed", "#db2777", "#0891b2", "#9ca3af"
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,7 +281,94 @@ else if (stats != null)
         isLoading = true;
         stats = await Api.GetStatsAsync(dateFrom, dateTo);
         maxDayHours = stats?.ByDay.Count > 0 ? stats.ByDay.Max(d => d.TotalHours) : 0;
+        BuildPieData();
+        BuildEvolutionData();
         isLoading = false;
+    }
+
+    private void BuildPieData()
+    {
+        pieSlices.Clear();
+        if (stats == null || stats.ByWorkstation.Count == 0 || stats.TotalHours == 0) return;
+
+        // Take top 5, group rest as "Autres"
+        var sorted = stats.ByWorkstation.OrderByDescending(w => w.TotalHours).ToList();
+        var top = sorted.Take(5).ToList();
+        var rest = sorted.Skip(5).ToList();
+
+        for (int i = 0; i < top.Count; i++)
+        {
+            pieSlices.Add(new PieSlice
+            {
+                Label = top[i].Label,
+                Hours = top[i].TotalHours,
+                Percentage = top[i].TotalHours / stats.TotalHours * 100m,
+                Color = ChartColors[i],
+            });
+        }
+
+        if (rest.Count > 0)
+        {
+            var restHours = rest.Sum(r => r.TotalHours);
+            pieSlices.Add(new PieSlice
+            {
+                Label = "Autres",
+                Hours = restHours,
+                Percentage = restHours / stats.TotalHours * 100m,
+                Color = ChartColors[7], // gray
+            });
+        }
+    }
+
+    private void BuildEvolutionData()
+    {
+        evolutionSeries.Clear();
+        evolutionDates.Clear();
+        maxCumulated = 0;
+
+        if (stats == null || stats.DailyByWorkstation.Count == 0) return;
+
+        // Get distinct sorted dates
+        evolutionDates = stats.DailyByWorkstation
+            .Select(d => d.EntryDate)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        // Get distinct workstations that have >0 hours, take those matching top from pie (by total hours)
+        var wsTotals = stats.ByWorkstation
+            .Where(w => w.TotalHours > 0)
+            .OrderByDescending(w => w.TotalHours)
+            .ToList();
+
+        var colorIndex = 0;
+        foreach (var ws in wsTotals)
+        {
+            if (colorIndex >= 7) break; // max 7 colored lines + leave last color for "other"
+
+            var cumulated = new List<decimal>();
+            decimal running = 0;
+            foreach (var date in evolutionDates)
+            {
+                var dayHours = stats.DailyByWorkstation
+                    .Where(d => d.EntryDate == date && d.Label == ws.Label)
+                    .Sum(d => d.Hours);
+                running += dayHours;
+                cumulated.Add(running);
+            }
+
+            evolutionSeries.Add(new EvolutionSeries
+            {
+                Label = ws.Label,
+                Color = ChartColors[colorIndex],
+                Points = cumulated,
+            });
+
+            if (running > maxCumulated) maxCumulated = running;
+            colorIndex++;
+        }
+
+        if (maxCumulated == 0) maxCumulated = 1; // avoid division by zero
     }
 
     private void OnFromChanged(ChangeEventArgs e)
@@ -174,5 +401,20 @@ else if (stats != null)
         var now = DateTime.Today;
         dateFrom = new DateOnly(now.Year, 1, 1);
         dateTo = new DateOnly(now.Year, 12, 31);
+    }
+
+    private class PieSlice
+    {
+        public string Label { get; set; } = "";
+        public decimal Hours { get; set; }
+        public decimal Percentage { get; set; }
+        public string Color { get; set; } = "";
+    }
+
+    private class EvolutionSeries
+    {
+        public string Label { get; set; } = "";
+        public string Color { get; set; } = "";
+        public List<decimal> Points { get; set; } = new();
     }
 }
